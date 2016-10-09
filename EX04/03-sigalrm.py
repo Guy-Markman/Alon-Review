@@ -40,10 +40,14 @@ def handler_SIGALRM(signum, frame):
     signal.alarm(1)
 
 
-def main():
+def init_signals():
     signal.signal(signal.SIGALRM, handler_SIGALRM)
     signal.alarm(1)
     signal.signal(signal.SIGCHLD, handler_SIGCHLD)
+
+
+def main():
+    init_signals()
     child = os.fork()
     if child == 0:
         child_process()
