@@ -18,9 +18,16 @@ def child_process():
 def parent_process(child_pid):
     signal.signal(signal.SIGCHLD, handler_SIGCHLD)
     util.write_to_target(
-        1, "Parent pid: %s\nChild pid: %s\n" % (os.getpid(), child_pid)
+        1, (
+                "Parent pid: %s\n"
+                "Child pid: %s\n"
+            ) % (
+                os.getpid(),
+                child_pid
+            )
         )
-    time.sleep(TIME_SLEEP_PARENT)
+    t = time.time()
+    util.sleep(TIME_SLEEP_PARENT)
     sys.exit()
 
 
@@ -30,6 +37,7 @@ def handler_SIGCHLD(signum, frame):
 
 def handler_SIGALRM(signum, frame):
     print "waiting"
+    signal.alarm(1)
 
 
 def main():

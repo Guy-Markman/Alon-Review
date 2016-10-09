@@ -12,7 +12,7 @@ BUFF_SIZE = 1000
 
 
 def child_process():
-    util.read_from_target(0, BUFF_SIZE)
+    time.sleep(TIME_SLEEP_CHILD)
     sys.exit()
 
 
@@ -27,7 +27,7 @@ def parent_process(child_pid):
                     child_pid
                 )
         )
-    time.sleep(TIME_SLEEP_PARENT)
+    util.read_from_target(0, BUFF_SIZE)
     sys.exit()
 
 
@@ -37,6 +37,7 @@ def handler_SIGCHLD(signum, frame):
 
 def handler_SIGALRM(signum, frame):
     print "waiting"
+    signal.alarm(1)
 
 
 def main():

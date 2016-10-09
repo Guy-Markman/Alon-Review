@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import signal
 import util
+import time
 
 
 def hal9000(signum, frame):
@@ -10,7 +11,7 @@ def hal9000(signum, frame):
 def main():
     signal.signal(signal.SIGINT, hal9000)
     while True:
-        continue
+        time.sleep(1)
 
 
 if __name__ == '__main__':
