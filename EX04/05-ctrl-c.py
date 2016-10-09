@@ -11,7 +11,7 @@ def hal9000(signum, frame):
 def main():
     signal.signal(signal.SIGINT, hal9000)
     while True:
-        time.sleep(1)
+        time.sleep(86400)  # Once every day
 
 
 if __name__ == '__main__':

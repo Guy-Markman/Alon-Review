@@ -17,7 +17,6 @@ def child_process():
 
 
 def parent_process(child_pid):
-    signal.signal(signal.SIGCHLD, handler_SIGCHLD)
     util.write_to_target(
         1, (
                 "Parent pid: %s\n"
@@ -43,6 +42,7 @@ def handler_SIGALRM(signum, frame):
 def main():
     signal.signal(signal.SIGALRM, handler_SIGALRM)
     signal.alarm(1)
+    signal.signal(signal.SIGCHLD, handler_SIGCHLD)
     child = os.fork()
     if child == 0:
         child_process()
