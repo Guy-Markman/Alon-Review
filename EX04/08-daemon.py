@@ -21,6 +21,8 @@ def set_up():
     signal.signal(signal.SIGTERM, terminate_handler)
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
+def proc_child_restarter (signum, frame):
+    proc_child()
 
 def proc_child():
     counter = 0
@@ -34,7 +36,7 @@ def main():
     set_up()
     child = os.fork()
     if child == 0:
-        signal.signal(signal.SIGUSR1, proc_child)
+        signal.signal(signal.SIGUSR1, proc_child_restarter)
         proc_child()
     os._exit(0)
 
