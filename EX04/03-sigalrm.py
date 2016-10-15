@@ -26,7 +26,6 @@ def parent_process(child_pid):
                 child_pid
             )
         )
-    t = time.time()
     util.sleep(TIME_SLEEP_PARENT)
     sys.exit()
 
