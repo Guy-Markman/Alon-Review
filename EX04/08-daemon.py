@@ -21,8 +21,10 @@ def set_up():
     signal.signal(signal.SIGTERM, terminate_handler)
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
-def proc_child_restarter (signum, frame):
+
+def proc_child_restarter(signum, frame):
     proc_child()
+
 
 def proc_child():
     counter = 0
