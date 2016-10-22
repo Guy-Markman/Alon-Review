@@ -2,17 +2,12 @@
 import os
 import sys
 import resource
-import time
 import signal
 import util
 
 
-def exit_gracefully():
-    sys.exit()
-
-
-def terminate_handler(signum, frame):
-    exit_gracefully()
+def set_none(signum, frame):
+    signal.signal(signum, None)
 
 
 def set_up():  # Return the FD of the log file
@@ -20,39 +15,49 @@ def set_up():  # Return the FD of the log file
     new_directory = os.open("/dev/null", os.O_RDWR)
     for x in range(3):
         os.dup2(new_directory, x)
+    os.close(new_directory)
     os.chdir("/")
-    signal.signal(signal.SIGINT, terminate_handler)
-    signal.signal(signal.SIGTERM, terminate_handler)
+    signal.signal(signal.SIGINT, set_none)
+    signal.signal(signal.SIGTERM, set_none)
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
-    signal.signal(signal.SIGUSR1, proc_child_restarter)
-
-
-def proc_child_restarter(signum, frame):
-    signal.setitimer(signal.ITIMER_REAL, sys.maxsize)
-
-
-def time_left():
-    return int(signal.getitimer(signal.ITIMER_REAL))[0]
+    signal.signal(signal.SIGUSR1, set_none)
+    signal.signal(signal.SIGALRM, set_none)
 
 
 def proc_child():
-    signal.signal(signal.SIGALRM, signal.SIG_IGN)
+    counter = 0
+    log_fd = os.open("log_file.txt", os.O_CREAT | os.O_APPEND)
     try:
-        with os.open("log_file.txt", os.O_CREAT | os.O_WRONLY | os.O_APPEND) as log_fd:
-            while True:
-                time.sleep(1)
-                util.write_to_target(log_fd, str(sys.maxsize - time_left()))
+        
+        while True:
+            if signal.getsignal(
+                    signal.SIGINT) is None or signal.getsignal(
+                    signal.SIGTERM) is None:
+                break
+            if signal.getsignal(signal.SIGALRM) is None:
+                util.write_to_target(log_fd, str(counter))
+                counter += 1
+                signal.signal(signal.SIGALRM, set_none)
+                signal.alarm(1)
+            if signal.getsignal(signal.SIGUSR1) is None:
+                counter = 0
+                signal.signal(signal.SIGUSR1, set_none)
+
     except Exception as e:
-        with os.open("log_file.txt", os.O_WRONLY | os.O_APPEND) as log_fd:
-            util.write_to_target(log_fd, "Error! %s" % e)
+        util.write_to_target(log_fd, "Error! %s" % e)
+    finally:
+        os.close(log_fd)
+    # Make sure both the file we opened in try
+    #  and the file we opened in except closed
+    sys.exit()
 
 
 def main():
     child = os.fork()
-    if child == 0:
-        set_up()
-        proc_child()
-    os._exit(0)
+    if child != 0:
+        os._exit(0)
+    set_up()
+    proc_child()
 
 
 if __name__ == "__main__":
