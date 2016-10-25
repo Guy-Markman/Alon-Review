@@ -28,7 +28,6 @@ def proc_child():
     counter = 0
     log_fd = os.open("log_file.txt", os.O_CREAT | os.O_APPEND)
     try:
-        
         while True:
             if signal.getsignal(
                     signal.SIGINT) is None or signal.getsignal(
