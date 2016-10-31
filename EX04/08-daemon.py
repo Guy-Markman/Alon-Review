@@ -4,9 +4,11 @@ import sys
 import resource
 import signal
 import util
-import
+import time
+
 
 counter = 0
+
 
 def set_ign(signum, frame):
     signal.signal(signum, signal.SIG_IGN)
@@ -41,16 +43,19 @@ def set_up():
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
     signal.signal(signal.SIGUSR1, reset_handler)
     signal.signal(signal.SIGALRM, add_handler)
+    signal.alarm(1)
 
 
 def proc_child():
+    print counter
     log_fd = os.open("log_file.txt", os.O_CREAT | os.O_APPEND, 00777)
     last = -1
-    try:        
-        while counter < 0:
+    try:
+        while counter >= 0:
             if counter != last:
                 util.write_to_target(1, str(counter))
                 last = counter
+                signal.alarm(1)
             time.sleep(86400)
     except Exception as e:
         util.write_to_target(log_fd, "Error! %s" % e)
