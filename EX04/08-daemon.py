@@ -4,10 +4,27 @@ import sys
 import resource
 import signal
 import util
+import
 
+counter = 0
 
 def set_ign(signum, frame):
     signal.signal(signum, signal.SIG_IGN)
+
+
+def terminate_handler(signum, frame):
+    global counter
+    counter = -100000
+
+
+def reset_handler(signum, frame):
+    global counter
+    counter = 0
+
+
+def add_handler(signum, frame):
+    global counter
+    counter += 1
 
 
 def set_up():
@@ -19,31 +36,22 @@ def set_up():
     finally:
         os.close(new_directory)
     os.chdir("/")
-    signal.signal(signal.SIGINT, set_ign)
-    signal.signal(signal.SIGTERM, set_ign)
+    signal.signal(signal.SIGINT, terminate_handler)
+    signal.signal(signal.SIGTERM, terminate_handler)
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
-    signal.signal(signal.SIGUSR1, set_ign)
-    signal.signal(signal.SIGALRM, set_ign)
+    signal.signal(signal.SIGUSR1, reset_handler)
+    signal.signal(signal.SIGALRM, add_handler)
 
 
 def proc_child():
-    counter = 0
     log_fd = os.open("log_file.txt", os.O_CREAT | os.O_APPEND, 00777)
+    last = -1
     try:        
-        while True:
-            if signal.getsignal(
-                    signal.SIGINT) is signal.SIG_IGN or signal.getsignal(
-                    signal.SIGTERM) is signal.SIG_IGN:
-                break
-            if signal.getsignal(signal.SIGALRM) is signal.SIG_IGN:
-                util.write_to_target(log_fd, str(counter))
-                counter += 1
-                signal.signal(signal.SIGALRM, set_none)
-                signal.alarm(1)
-            if signal.getsignal(signal.SIGUSR1) is signal.SIG_IGN:
-                counter = 0
-                signal.signal(signal.SIGUSR1, set_none)
-
+        while counter < 0:
+            if counter != last:
+                util.write_to_target(1, str(counter))
+                last = counter
+            time.sleep(86400)
     except Exception as e:
         util.write_to_target(log_fd, "Error! %s" % e)
     finally:
