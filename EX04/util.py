@@ -3,6 +3,7 @@ import os
 import errno
 import time
 
+
 def write_to_target(target, text):
     while text:
         text = text[os.write(target, text):]
@@ -18,10 +19,8 @@ def read_from_target(target, size):
                 raise
 
 
-def sleep(sec): #Less acurate if you use time.sleep without signals
+def sleep(sec):  # Less acurate if you use time.sleep without signals
     while sec > 0:
         start = time.time()
         time.sleep(sec)
         sec -= time.time() - start
-        
-    

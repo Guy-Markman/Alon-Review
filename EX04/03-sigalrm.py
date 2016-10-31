@@ -16,17 +16,16 @@ def child_process():
 
 
 def parent_process(child_pid):
-    
+
     util.write_to_target(
         1, (
-                "Parent pid: %s\n"
-                "Child pid: %s\n"
-            ) % (
-                os.getpid(),
-                child_pid
-            )
+            "Parent pid: %s\n"
+            "Child pid: %s\n"
+        ) % (
+            os.getpid(),
+            child_pid
         )
-    t = time.time()
+    )
     util.sleep(TIME_SLEEP_PARENT)
     sys.exit()
 
