@@ -5,18 +5,16 @@ import resource
 import signal
 import util
 import time
+import stat
 
 
 counter = 0
-
-
-def set_ign(signum, frame):
-    signal.signal(signum, signal.SIG_IGN)
+run = True
 
 
 def terminate_handler(signum, frame):
-    global counter
-    counter = -100000
+    global run
+    run = False
 
 
 def reset_handler(signum, frame):
@@ -30,8 +28,8 @@ def add_handler(signum, frame):
 
 
 def set_up():
-    os.closerange(3, resource.RLIMIT_NOFILE)
-    new_directory = os.open("/dev/null", os.O_WRONLY)
+    os.closerange(3, 3+resource.RLIMIT_NOFILE)
+    new_directory = os.open(os.devnull, os.O_RDWR)
     try:
         for x in range(3):
             os.dup2(new_directory, x)
@@ -41,19 +39,24 @@ def set_up():
     signal.signal(signal.SIGINT, terminate_handler)
     signal.signal(signal.SIGTERM, terminate_handler)
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
-    signal.signal(signal.SIGUSR1, reset_handler)
-    signal.signal(signal.SIGALRM, add_handler)
-    signal.alarm(1)
 
 
 def proc_child():
-    print counter
-    log_fd = os.open("log_file.txt", os.O_CREAT | os.O_APPEND, 00777)
+    signal.signal(signal.SIGUSR1, reset_handler)
+    signal.signal(signal.SIGALRM, add_handler)
+    signal.alarm(1)
+    global counter
+    global run
+    log_fd = os.open(
+                    "log_file.txt",
+                    os.O_CREAT | os.O_APPEND,
+                    stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH
+                    )
     last = -1
     try:
-        while counter >= 0:
+        while run:
             if counter != last:
-                util.write_to_target(1, str(counter))
+                util.write_to_target(log_fd, str(counter))
                 last = counter
                 signal.alarm(1)
             time.sleep(86400)
