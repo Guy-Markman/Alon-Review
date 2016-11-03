@@ -11,31 +11,24 @@ def parse_args():
     parser = argparse.ArgumentParser()
     
     parser.add_argument(
-        "--Address-first", "-al",
+        "--Address-passive", "-ap",
         default = "127.0.0.1",
         type = str,
-        help = "The address of the first program"
+        help = "The address of the passive program"
     )
     
     parser.add_argument(
-        "--Port-first", "-pl",
+        "--Port-passive", "-pp",
         default = 8081,
         type = int,
-        help = "The port of the first program"       
+        help = "The port of the passive program"       
     )
     
     parser.add_argument(
-        "--Address-second", "-al",
-        default = "127.0.0.2",
-        type = str,
-        help = "The address of the second program"
-    )
-    
-    parser.add_argument(
-        "--Port-second", "-pl",
-        default = 8082,
+        "--Port-active", "-pa",
+        default = 8080,
         type = int,
-        help = "The port of the second program"       
+        help = "The port that our active side will connect with"       
     )
     
     parser.add_argument(
@@ -45,16 +38,13 @@ def parse_args():
         help = "Proxy Address"        
     )
     
-    parse.add_argument(
-        "--Our-port", "-op",
-        default = 8080
-    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    server = ProxyServer()
+    server = ProxyServer(args.Our_address, args.Port_active, args.Port_passive)
+    server.connect()
 
 if __name__ == "__main__":
     main()
