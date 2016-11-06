@@ -4,17 +4,15 @@ import select
 
 
 class ProxyServer(object):
-    # port_active_connect: The port that our active side will connect with
-    # port_passive_bind: The port that our passive side will bind to
-    def __init__(self, host, port_active_connect, port_passive_bind):
+    def __init__(self, host, bind_passive, bind_active):
         self.connection_list=[]
         
         self.passive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.passive.bind((host, port_passive_bind))
+        self.passive.bind((host, bind_passive))
         self.passive.listen(1)
         
         self.active = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.active.bind((host, port_active_connect))
+        self.active.bind((host, bind_active))
         
         self.poller = select.poll()
     
