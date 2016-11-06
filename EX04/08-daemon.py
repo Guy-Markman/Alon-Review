@@ -49,7 +49,7 @@ def proc_child():
     global run
     log_fd = os.open(
                     "log_file.txt",
-                    os.O_CREAT | os.O_APPEND,
+                    os.O_CREAT | os.O_APPEND | os.O_WRONLY,
                     stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH
                     )
     last = -1
