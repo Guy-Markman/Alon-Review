@@ -24,5 +24,27 @@ class ProxyServer(object):
         accepted, addr = s.accept()
         self.connection_list.append(accepted)
 
-    def proxy():
+    def send(s, buffer):
+        try:
+            while buffer:
+                buffer =buffer[s.send(buffer):]
+        except OSError as e:
+            if e.errno not in (errno.EWOULDBLOCK,
+                errno.EAGAIN
+                ):
+                    raise
+    def recv(s, limit):
+        try:
+            ret=""
+            while len(ret) <limit:
+                buf = s.recv(limit - len(ret))
+                if not buf:
+                    raise Disconnect()
+                ret += buf
+        except OSError as e:
+            if e.errno not in (errno.EWOULDBLOCK,
+                errno.EAGAIN
+                ):
+                    raise
+        
         
