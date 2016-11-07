@@ -149,12 +149,14 @@ def main():
         )
     logger.debug("Start")
     passive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    logger.debug("Connect to (%s,%s)" %(args. our_address,args.bind_port_passive ))
+    logger.debug("Bind to (%s,%s)" %(args. our_address,args.bind_port_passive ))
     passive.bind((args.our_address, args.bind_port_passive))
     passive.listen(1)
 
     active = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     active.bind((args.our_address, args.bind_port_active))
+    logger.debug("Bind to (%s,%s)" %(args. our_address,args.bind_port_active ))
+    
 
     poller = select.poll()
     
@@ -166,10 +168,13 @@ def main():
     
     logger.debug("Setup")
     
+    
+    
     logger.debug("active %s" %active.fileno())
     logger.debug("passive %s" % passive.fileno())
     logger.debug(select.POLLOUT)
     while True:
+        poller = select.poll()
         for fd, flag in poller.poll(TIMEOUT):
             logger.debug("event (%s,%s)" %(fd, flag))
             s = database[fd]["socket"]
@@ -178,10 +183,12 @@ def main():
                     connection, add = s.accept()
                     connection.setblocking(0)
                     logger.debug((args.address_passive,args.port_passive))
-                    active.connect((localhost,8080))
-                    poller.register(active, READ_WRITE)
                     database = build_data(database, connection, active, "ACTIVE")
                     poller.register(connection, READ_ONLY)
+                    active.connect(("127.0.0.1", 8080))
+                else:
+                    data=recv(s, 1024)
+                    database[passive.fileno()]["buff"] += data
             elif flag & select.POLLHUP:
                 poller.unregister(s)
                 s.close()
@@ -193,6 +200,7 @@ def main():
                 poller.debug("Yes")
                 poller.unregister(s)
                 s.close()
+    
 
 
 if __name__ == "__main__":
