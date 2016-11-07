@@ -41,6 +41,30 @@ def parse_args():
     return parser.parse_args()
 
 
+def send(s, buffer):
+        try:
+            while buffer:
+                buffer =buffer[s.send(buffer):]
+        except OSError as e:
+            if e.errno not in (errno.EWOULDBLOCK,
+                errno.EAGAIN
+                ):
+                    raise
+
+def recv(s, limit):
+        try:
+            ret=""
+            while len(ret) <limit:
+                buf = s.recv(limit - len(ret))
+                if not buf:
+                    raise Disconnect()
+                ret += buf
+        except OSError as e:
+            if e.errno not in (errno.EWOULDBLOCK,
+                errno.EAGAIN
+                ):
+                    raise
+
 def main():
     args = parse_args()
     server = ProxyServer(args.Our_address, args.Port_active, args.Port_passive)
