@@ -17,7 +17,7 @@ with contextlib.closing(
             poller = select.poll()
             GOTDATA = select.POLLIN | select.POLLERR | select.POLLHUP
             poller.register(s, GOTDATA)
-            fd_to_socket = { s.fileno(): s,
+            fd_to_socket = {s.fileno(): s,
                 }
             line = ""
             while True:
@@ -31,5 +31,3 @@ with contextlib.closing(
                         line = ""
                     else:
                         line += data
-                    
-
