@@ -1,26 +1,29 @@
-#The proxy server we will creat
+# The proxy server we will creat
 import socket
 import select
 
+READ_WRITE = select.POLLIN | select.POLLHUP | select.POLLERR | select.POLLOUT
+
 
 class ProxyServer(object):
+
     def __init__(self, host, bind_passive, bind_active):
-        self.connection_list=[]
-        
+        self.connection_list = []
+
         self.passive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.passive.bind((host, bind_passive))
         self.passive.listen(1)
-        
+        self.connection_list.append(self.passive)
+
         self.active = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.active.bind((host, bind_active))
-        
+        self.connection_list.append(self.passive)
+
         self.poller = select.poll()
-    
-    def connect(self, connect_address, connect_port)
-        self.active.connect((connect_address, connect_port))
-        
-        accepted, addr = s.accept()
-        self.connection_list.append(accepted)
+
+    def build_poller():
+        self.poller = select.poll()
+        for s in connection_list:
+            self.poller.register(s, READ_WRITE)
 
     def proxy():
-        
