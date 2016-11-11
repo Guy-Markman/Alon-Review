@@ -40,7 +40,7 @@ def parse_args():
 def main():
     args = parse_args()
     server = ProxyServer(args.Our_address, args.Port_active, args.Port_passive)
-    server.connect()
+    server.proxy(args)
 
 if __name__ == "__main__":
     main()

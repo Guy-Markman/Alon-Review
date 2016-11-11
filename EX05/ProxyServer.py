@@ -21,9 +21,7 @@ class ProxyServer(object):
 
         self.poller = select.poll()
 
-    def build_poller():
+    def build_poller(self):
         self.poller = select.poll()
-        for s in connection_list:
+        for s in self.connection_list:
             self.poller.register(s, READ_WRITE)
-
-    def proxy():
