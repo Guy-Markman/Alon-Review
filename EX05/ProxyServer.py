@@ -22,5 +22,6 @@ class ProxyServer(object):
         accepted, addr = s.accept()
         self.connection_list.append(accepted)
 
-    def proxy():
+    def proxy(self, args):
+        
         
