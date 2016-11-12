@@ -30,7 +30,7 @@ class ProxyServer(object):
         for s in self.connection_list:
             self.poller.register(s, READ_WRITE)
 
-    def proxy(self, args):
+    def proxy(self):
         database = util.add_to_database({}, self.passive, self.active)
         database = util.add_to_database(database, self.active, self.passive)
         while True:
