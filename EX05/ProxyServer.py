@@ -28,8 +28,8 @@ class ProxyServer(object):
         for s in self.connection_list:
             self.poller.register(s, READ_WRITE)
 
+    @staticmethod
     def add_to_database(database, s, peer):
-        @staticmethod
         database[socket.fileno()] = {
             "socket": s,
             "buff": "",
