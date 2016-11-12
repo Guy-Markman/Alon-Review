@@ -1,7 +1,7 @@
 # The proxy server we will creat
 import socket
 import select
-
+import util
 READ_WRITE = select.POLLIN | select.POLLHUP | select.POLLERR | select.POLLOUT
 
 
@@ -28,17 +28,9 @@ class ProxyServer(object):
         for s in self.connection_list:
             self.poller.register(s, READ_WRITE)
 
-    @staticmethod
-    def add_to_database(database, s, peer):
-        database[socket.fileno()] = {
-            "socket": s,
-            "buff": "",
-            "peer": peer
-        }
-        return database
-
     def proxy(self, args):
-        database = {}
+        database = util.add_to_database({}, self.passive, self.active)
+        database = util.add_to_database(database, self.active, self.passive)
         while True:
-            build_poller()
+            self.build_poller()
             events = self.poller.poll()
