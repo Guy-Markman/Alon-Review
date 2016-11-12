@@ -9,12 +9,17 @@ usage: poll.py [-h] [--Address-passive ADDRESS_PASSIVE]
                [--Our-address OUR_ADDRESS]
 
 optional arguments:
+
   -h, --help            show this help message and exit
+  
   --Address-passive ADDRESS_PASSIVE, -ap ADDRESS_PASSIVE
                         The address of the passive program
+                        
   --Port-passive PORT_PASSIVE, -pp PORT_PASSIVE
                         The port of the passive program
+                        
   --Port-active PORT_ACTIVE, -pa PORT_ACTIVE
                         The port that our active side will connect with
+                        
   --Our-address OUR_ADDRESS, -oa OUR_ADDRESS
                         Proxy Address
