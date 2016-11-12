@@ -3,6 +3,7 @@ import socket
 import select
 import util
 READ_WRITE = select.POLLIN | select.POLLHUP | select.POLLERR | select.POLLOUT
+BUFF_SIZE = 1024
 
 
 class ProxyServer(object):
@@ -32,5 +33,30 @@ class ProxyServer(object):
         database = util.add_to_database({}, self.passive, self.active)
         database = util.add_to_database(database, self.active, self.passive)
         while True:
-            self.build_poller()
-            events = self.poller.poll()
+            for fd, flag in self.poller.poll():
+                if flag & select.POOLIN:
+                    if database[fd]["socket"] is self.passive:
+                            s, address = database[fd]["socket"].accpet()
+                            s.setblocking(0)
+                            database = util.add_to_database(
+                                database,
+                                s,
+                                self.active
+                            )
+                            database[self.active.fileno()]["peer"] = s.fileno()
+                            self.connection_list.append(s)
+                    else:
+                        data = util.recv(database[fd]["socket"], BUFF_SIZE)
+                        if data:
+                            database[database[fd]["peer"]]["buff"] += data
+                            self.poller.modify(s, READ_WRITE)
+                        else:
+                            self.poller.unregister(s)
+                            self.connection_list.pop(s)
+                            s.close()
+                if flag & (select.POLLHUP | select.POLLERR):
+                    self.poller.unregister(s)
+                    self.connection_list.pop(s)
+                    s.close()
+                if flag & select.POLLOUT & database[fd]["buff"]:
+                    util.send(database[fd]["socket"], database[fd]["buff"])
