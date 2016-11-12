@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # The proxy server we will creat
 import socket
 import select

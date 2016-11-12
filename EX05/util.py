@@ -3,7 +3,7 @@ import fcntl
 import socket
 import os
 import errno
-from disconnect import Disconeect
+import disconnect
 
 
 def add_to_database(database, s, peer):
