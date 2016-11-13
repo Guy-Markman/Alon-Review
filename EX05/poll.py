@@ -9,7 +9,7 @@ def parse_args():
 
     parser.add_argument(
         "--address-passive", "-ap",
-        default="127.0.0.1",
+        default="localhost",
         type=str,
         help="The address of the passive program"
     )
@@ -22,17 +22,22 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--port-passive", "-pop",
-        default=8081,
+        "--bind-port-passive", "-bpp",
+        default=8080,
         type=int,
         help="The port that our active side will connect with"
     )
 
-    # TODO: Add aguments whice we will port bind it to self.active
+    parser.add_argument(
+        "--bind-port-active", "-bpa",
+        default=0,
+        type=int,
+        help="The port that our active side will bind to"
+    )
 
     parser.add_argument(
         "--our-address", "-oa",
-        default="127.0.0.3",
+        default="localhost",
         type=str,
         help="Proxy Address"
     )
@@ -43,14 +48,13 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # TODO: Assign right args
     server = ProxyServer(
-        args.Our_address,
-        args.Port_active,
-        args.Port_passive
+        args.our_address,
+        args.bind_port_passive,
+        args.bind_port_active
     )
 
-    server.proxy()
+    server.proxy(args)
 
 if __name__ == "__main__":
     main()

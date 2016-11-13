@@ -3,7 +3,10 @@ import fcntl
 import socket
 import os
 import errno
-import disconnect
+from disconnect import Disconnect
+import select
+
+BASIC_SELECT = select.POLLERR | select.POLLOUT
 
 
 def add_to_database(database, s, peer):
@@ -22,14 +25,34 @@ def set_non_blocking(Fd):
     )
 
 
+def build_poller(database, limit):
+    poller = select.poll()
+    for fd in database:
+        if database[fd]["buff"]:
+            if len(database[fd]["buff"]) < limit:
+                poller.register(
+                    database[fd]["socket"],
+                    BASIC_SELECT | select.POLLIN | select.POLLOUT)
+            else:
+                poller.register(
+                    database[fd]["socket"],
+                    BASIC_SELECT | select.POOLOUT
+                )
+        else:
+            poller.register(
+                database[fd]["socket"],
+                BASIC_SELECT | select.POOLIN
+            )
+
+
 def recv(s, limit):
     ret = ""
     while len(ret) < limit:
         try:
-            buff = s.recv(limit-len(ret))
+            buff = s.recv(limit - len(ret))
             if not buff:
                 if not ret:
-                    raise Disconeect()
+                    raise Disconnect()
                 break
             ret += buff
         except os.ERRNO as e:

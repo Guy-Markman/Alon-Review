@@ -9,54 +9,55 @@ BUFF_SIZE = 1024
 
 class ProxyServer(object):
 
-    def __init__(self, host, bind_passive, bind_active):
+    def __init__(self):
         self.connection_list = []
 
+        self.active = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.passive = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.passive.bind((host, bind_passive))
+        self.database = {}
+        self.add_to_database(self.passive, self.active)
+        self.add_to_database(self.active, self.passive)
+
+    def add_to_database(self, s, peer):
+        self.database[socket.fileno()] = {
+            "socket": s,
+            "buff": "",
+            "peer": peer.fileno()
+        }
+
+    def proxy(self, args):
+        self.passive.bind((args.host, args.bind_passive))
         self.passive.listen(1)
         self.passive.setblocking(0)
         self.connection_list.append(self.passive)
-
-        self.active = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.active.bind((host, bind_active))
-        self.passive.setblocking(0)
-        self.connection_list.append(self.passive)
-
-        self.poller = select.poll()
-
-    def build_poller(self):
-        self.poller = select.poll()
-        for s in self.connection_list:
-            self.poller.register(s, READ_WRITE)
-
-    def proxy(self):
-        database = util.add_to_database({}, self.passive, self.active)
-        database = util.add_to_database(database, self.active, self.passive)
         while True:
-            for fd, flag in self.poller.poll():
+            poller = util.build_poller(self.database, BUFF_SIZE)
+            for fd, flag in poller.poll():
                 if flag & select.POOLIN:
-                    if database[fd]["socket"] is self.passive:
-                            s, address = database[fd]["socket"].accpet()
+                    if self.database[fd]["socket"] is self.passive:
+                            s, address = self.database[fd]["socket"].accpet()
                             s.setblocking(0)
                             database = util.add_to_database(
-                                database,
+                                self.database,
                                 s,
                                 self.active
                             )
                             database[self.active.fileno()]["peer"] = s.fileno()
                             self.connection_list.append(s)
+
+                            self.active.bind((args.host, args.bind_active))
+                            self.passive.setblocking(0)
+                            self.connection_list.append(self.passive)
                     else:
                         data = util.recv(database[fd]["socket"], BUFF_SIZE)
                         if data:
                             database[database[fd]["peer"]]["buff"] += data
-                            self.poller.modify(s, READ_WRITE)
+                            poller.modify(s, READ_WRITE)
+
                         else:
-                            self.poller.unregister(s)
                             self.connection_list.pop(s)
                             s.close()
                 if flag & (select.POLLHUP | select.POLLERR):
-                    self.poller.unregister(s)
                     self.connection_list.pop(s)
                     s.close()
                 if flag & select.POLLOUT & database[fd]["buff"]:
