@@ -43,7 +43,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    #TODO: Assign right args
+    # TODO: Assign right args
     server = ProxyServer(
         args.Our_address,
         args.Port_active,
