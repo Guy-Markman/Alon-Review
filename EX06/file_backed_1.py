@@ -14,16 +14,23 @@ def main():
         stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH
     )
 
-    os.lseek(fd, constants.FILE_SIZE, os.SEEK_SET)
+    os.lseek(fd, constants.FILE_SIZE-1, os.SEEK_SET)
+    before_changes = None
+    if os.fsta(fd).st_size >= constants.FILE_SIZE: # TODO: Change it so it'll work in both cases
+        os.lseek(fd, constants.START_LOCATION, os.SEEK_SET)
+        before_changes = os.read
     os.write(fd, "\0")
     try:
-        with contextlib.closing(mmap.mmap(fd, 1024)) as mm:
+        with contextlib.closing(mmap.mmap(fd, constants.FILE_SIZE)) as mm:
             counter = 0
             while True:
                 mm[
                     constants.START_LOCATION:
                     constants.END_LOCATION
-                ] = "%4x" % counter
+                ] = "%*x" % (
+                    constants.END_LOCATION - constants.START_LOCATION,
+                    counter
+                )
                 counter += 1
                 time.sleep(1)
     finally:
