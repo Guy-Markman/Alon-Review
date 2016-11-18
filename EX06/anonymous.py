@@ -19,8 +19,8 @@ def proc_child(file):
 def proc_parent(file):
     counter = 0
     while True:
-        file[constants.START_LOCATION:constants.END_LOCATION] = "%04x" % (
-            counter)
+        file[constants.START_LOCATION:constants.END_LOCATION] = "%*x" % (
+            constants.END_LOCATION - constants.START_LOCATION, counter)
         counter += 1
         time.sleep(1)
 
