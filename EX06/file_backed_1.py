@@ -15,12 +15,7 @@ def main():
         os.O_CREAT | os.O_RDWR,
         stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH
     )
-<<<<<<< HEAD
     while os.fstat(fd).st_size < constants.FILE_SIZE:
-=======
-    while os.stat(fd).st_size < constants.FILE_SIZE:
->>>>>>> 232deea8a33dd1896f0463c5638bb8802d543bbc
-        os.lseek(fd, constants.FILE_SIZE-1, os.SEEK_SET)
         os.write(fd, FILE_END)
     try:
         with contextlib.closing(mmap.mmap(fd, constants.FILE_SIZE)) as mm:
