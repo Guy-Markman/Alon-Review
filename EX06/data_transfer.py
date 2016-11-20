@@ -3,20 +3,22 @@ import argparse
 import contextlib
 import logging
 import mmap
-import os
-import random
-import struct
-import time
 
 import base
 import constants
-import CyclicBuffer
+from CyclicBuffer import CyclicBuffer
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="package name",
         description=("package"),
+    )
+
+    parser.add_argument(
+        "--buffer-name", "-bn",
+        default=None,
+        help="Buffer file name"
     )
     LOG_STR_LEVELS = {
         'DEBUG': logging.DEBUG,
@@ -41,7 +43,6 @@ def parse_args():
     )
     args = parser.parse_args()
     args.log_level = LOG_STR_LEVELS[args.log_level_str]
-
     logger = None
 
     if args.log_file:
@@ -53,15 +54,14 @@ def parse_args():
         logger = base.setup_logging(
             level=args.log_level,
         )
-    with contextlib.closing(mmap.mmap(-1, constants.BUFFER_SIZE)) as mm:
-        cb = CyclicBuffer.CyclicBuffer(mm)
-        cb.write_head(struct.pack("1"))
-        print cb.read_head()
+    logger.debug("Args parsed")
 
 
 def main():
-    arg = parse_args()
-    logger.debug("check")
+    with contextlib.closing(mmap.mmap(-1, constants.BUFFER_SIZE)) as mm:
+        cb = CyclicBuffer(mm)
+        print type(cb.mm[-8:])
+
 
 if __name__ == "__main__":
     main()

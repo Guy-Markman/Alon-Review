@@ -4,6 +4,8 @@ import struct
 import base
 import constants
 
+DEFAULT_BUFFERS = 00000000
+
 
 class CyclicBuffer(base.Base):
 
@@ -18,7 +20,7 @@ class CyclicBuffer(base.Base):
     def get_head_offset(self):
         head_offset = self.mm[-2 *
                               constants.OFFSET_SIZE:-1 * constants.OFFSET_SIZE]
-        self.logger.debug("head offset %s" % struct.unpack("b", head_offset))
+        self.logger.debug("head offset %s" % head_offset)
         return head_offset
 
     def set_head_offset(self, value):
@@ -46,7 +48,7 @@ class CyclicBuffer(base.Base):
 
     def write_head(self, value):
         head_offset = self.get_head_offset()
-        self.logger.debug("Wrote %d into %d" % (value, head_offset))
+        self.logger.debug("Wrote %s into %s" % (value, head_offset))
         self.mm[head_offset] = value
 
     def write_tail(self, value):
