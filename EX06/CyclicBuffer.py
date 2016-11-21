@@ -37,13 +37,11 @@ class CyclicBuffer(base.Base):
 
     def read_head(self):
         head_offset = self.get_head_offset()
-        ans = self.mm[head_offset]
-        return ans
+        return self.mm[head_offset]
 
     def read_tail(self):
         tail_offset = self.get_tail_offset()
-        ans = self.mm[tail_offset]
-        return ans
+        return self.mm[tail_offset]
 
     def write_head(self, value):
         head_offset = self.get_head_offset()
@@ -70,7 +68,8 @@ class CyclicBuffer(base.Base):
         ans = self.mm[tail_offset]
         if tail_offset + 1 <= self.max_size_buffer():
             self.set_tail_offset(tail_offset + 1)
-            self.logger.debug("Increased tail offset to" % (tail_offset + 1))
+            self.logger.debug("Increased tail offset to %d" %
+                              (tail_offset + 1))
         else:
-            self.logger.debug("Reset tail offset, returned %s" % ans)
+            self.logger.debug("Reset tail offset, returned %d" % ans)
             self.set_tail_offset(0)

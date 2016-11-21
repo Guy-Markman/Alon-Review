@@ -3,10 +3,16 @@ import argparse
 import contextlib
 import logging
 import mmap
+import os
+import random
+import time
 
 import base
 import constants
+import util
 from CyclicBuffer import CyclicBuffer
+
+NUMER_OF_BYTES_FOR_TEST = 21474836480  # 20GB
 
 
 def parse_args():
@@ -16,9 +22,10 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--buffer-name", "-bn",
-        default=None,
-        help="Buffer file name"
+        "--test-bytes", "-tb",
+        default=NUMER_OF_BYTES_FOR_TEST,
+        description="Number of bytes for the test, defualt 20GB",
+        type=int
     )
     LOG_STR_LEVELS = {
         'DEBUG': logging.DEBUG,
@@ -43,8 +50,29 @@ def parse_args():
     )
     args = parser.parse_args()
     args.log_level = LOG_STR_LEVELS[args.log_level_str]
-    logger = None
+    return args
 
+
+def proc_parent(cb, logger, returns):
+    sum = 0
+    for x in xrange(returns):
+        byte = os.urandom(1)
+        sum += util.data_to_int(byte)
+        cb.write_head(byte)
+        cb.increas_head()
+    print sum
+
+
+def proc_child(cb, logger, returns):
+    sum = 0
+    for x in xrange(returns):
+        sum += util.data_to_int(cb.read_tail())
+        cb.increas_tail()
+    print sum
+
+
+def main():
+    args = parse_args()
     if args.log_file:
         logger = base.setup_logging(
             stream=open(args.log_file, 'a'),
@@ -54,13 +82,17 @@ def parse_args():
         logger = base.setup_logging(
             level=args.log_level,
         )
-    logger.debug("Args parsed")
-
-
-def main():
     with contextlib.closing(mmap.mmap(-1, constants.BUFFER_SIZE)) as mm:
+        logger.debug("Started")
         cb = CyclicBuffer(mm)
-        print type(cb.mm[-8:])
+        child = os.fork()
+        if child == 0:
+            logger.debug("Forked child")
+            time.sleep(5)  # Let the parent write a little bit and then start
+            proc_child(cb, logger, args.test_bytes)
+        else:
+            logger.debug("Forked parent")
+            proc_parent(cb, logger, args.test_bytes)
 
 
 if __name__ == "__main__":
