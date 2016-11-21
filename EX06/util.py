@@ -12,7 +12,7 @@ def data_to_int(data):
     if len(data) == 0:
         raise ValueError
     for x in data:
-        integer = integer * FORMAT[1] + struct.unpack(FORMAT[0], x)[0]
+        integer = integer * FORMAT[1]**2 + struct.unpack(FORMAT[0], x)[0]
     return integer
 
 
