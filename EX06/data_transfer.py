@@ -4,15 +4,15 @@ import contextlib
 import logging
 import mmap
 import os
-import random
 import time
 
 import base
 import constants
+import CyclicBuffer
 import util
-from CyclicBuffer import CyclicBuffer
 
 NUMER_OF_BYTES_FOR_TEST = 21474836480  # 20GB
+EMPTY = "\0"
 
 
 def parse_args():
@@ -56,7 +56,10 @@ def parse_args():
 def proc_parent(cb, logger, returns):
     sum = 0
     for x in xrange(returns):
-        byte = os.urandom(1)
+        while True:
+            byte = os.urandom(1)
+            if byte != EMPTY:
+                break
         sum += util.data_to_int(byte)
         cb.write_head(byte)
         cb.increas_head()
@@ -66,7 +69,11 @@ def proc_parent(cb, logger, returns):
 def proc_child(cb, logger, returns):
     sum = 0
     for x in xrange(returns):
-        sum += util.data_to_int(cb.read_tail())
+        while True:
+            byte = cb.read_tail()
+            if byte != EMPTY:
+                break
+        sum += util.data_to_int(byte)
         cb.increas_tail()
     print sum
 
@@ -84,7 +91,7 @@ def main():
         )
     with contextlib.closing(mmap.mmap(-1, constants.BUFFER_SIZE)) as mm:
         logger.debug("Started")
-        cb = CyclicBuffer(mm)
+        cb = CyclicBuffer.CyclicBuffer(mm)
         child = os.fork()
         if child == 0:
             logger.debug("Forked child")
