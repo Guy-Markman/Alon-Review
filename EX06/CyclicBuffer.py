@@ -6,66 +6,62 @@ import util
 
 class CyclicBuffer(base.Base):
 
-    def __init__(self, mm):
+    def __init__(self, mm, start=0, size=constants.BUFFER_SIZE):
         super(CyclicBuffer, self).__init__()
         self.logger.debug("Created cyclic Buffer")
-        self.mm = mm
-        self._head = 0
-        self._tail = 0
+        self._mm = mm
+        self.start = start
+        self.size = size
+
+        # [Start , End]
+        self._head_offset = {"start": start + size - 2 * constants.OFFSET_SIZE,
+                             "end": start + size - constants.OFFSET_SIZE}
+        self._tail_offset = {"start": start + size - constants.OFFSET_SIZE,
+                             "end": start + size}
 
     def min_allocate(self):
-        return constants.BUFFER_SIZE - 2 * constants.OFFSET_SIZE
+        return self.size - 2 * constants.OFFSET_SIZE
 
     @property
     def head(self):
-        return self._head
-
-    @head.getter
-    def head(self):
-        self.logger.debug("head offset %s" % self._head)
-        return self._head
+        return util.data_to_int(self._mm[self._head_offset["start"]:
+                                         self._head_offset["end"]])
 
     @head.setter
     def head(self, value):
         self.logger.debug("Set head offset to %d" % value)
-        encrepted_data = util.int_to_data(value)
-        self.mm[constants.BUFFER_SIZE - 2 * constants.OFFSET_SIZE:
-                constants.BUFFER_SIZE - constants.OFFSET_SIZE] = encrepted_data
-        self._head = encrepted_data
+        self._mm[self._head_offset["start"]:self._head_offset[
+            "end"]] = util.int_to_data(value)
 
     @property
     def tail(self):
-        return self._tail
-
-    @tail.getter
-    def tail(self):
-        self.logger.debug("tail offset %s" % self._tail)
-        return self._tail
+        return util.data_to_int(self._mm[self._tail_offset["start"]:
+                                         self._tail_offset["end"]])
 
     @tail.setter
     def tail(self, value):
         self.logger.debug("Set tail offset to %d" % value)
-        encrepted_data = util.int_to_data(value)
-        self.mm[constants.BUFFER_SIZE -
-                constants.OFFSET_SIZE: constants.OFFSET_SIZE] = encrepted_data
-        self._tail = encrepted_data
+        self._mm[self._tail_offset["start"]:self._tail_offset["end"]] = \
+            util.int_to_data(value)
 
     def read_head(self):
-        return self.mm[self._head]
+        return self._mm[self.head]
 
     def read_tail(self):
-        return self.mm[self._tail]
+        return self._mm[self.tail]
 
     def write_head(self, value):
         self.logger.debug("Wrote %s into %s" % (value, self.head))
-        self.mm[self._head] = value
+        self._mm[self.head] = value
 
     def write_tail(self, value):
         self.logger.debug("Wrote %s into %d" % (value, self.tail))
-        self.mm[self._tail] = value
+        self._mm[self._tail] = value
 
     def increas_head(self):
-        self._head = self._head + 1 if self._head + 1 < self.min_allocate() else 0
+        plus_one = self.head + 1
+        self.head = plus_one if plus_one < self.min_allocate() else self.start
 
     def increas_tail(self):
-        self._tail = self._tail + 1 if self._tail + 1 < self.min_allocate() else 0
+        plus_one = self.tail + 1
+        self.tail = plus_one if plus_one < self.min_allocate() else self.start
