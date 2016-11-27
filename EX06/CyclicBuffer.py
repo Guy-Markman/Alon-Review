@@ -45,9 +45,11 @@ class CyclicBuffer(base.Base):
             util.int_to_data(value)
 
     def read_head(self):
+        self.logger.debug("Read %s from %s" % (self._mm[self.tail], self.tail))
         return self._mm[self.head]
 
     def read_tail(self):
+        self.logger.debug("Read %s from %s" % (self._mm[self.tail], self.tail))
         return self._mm[self.tail]
 
     def write_head(self, value):
@@ -65,3 +67,4 @@ class CyclicBuffer(base.Base):
     def increas_tail(self):
         plus_one = self.tail + 1
         self.tail = plus_one if plus_one < self.min_allocate() else self.start
+        

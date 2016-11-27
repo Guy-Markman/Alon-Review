@@ -5,6 +5,7 @@ import logging
 import mmap
 import os
 import time
+import random
 
 import base
 import constants
@@ -24,7 +25,7 @@ def parse_args():
     parser.add_argument(
         "--test-bytes", "-tb",
         default=NUMER_OF_BYTES_FOR_TEST,
-        description="Number of bytes for the test, defualt 20GB",
+        help="Number of bytes for the test, defualt 20GB",
         type=int
     )
     LOG_STR_LEVELS = {
@@ -56,12 +57,9 @@ def parse_args():
 def proc_parent(cb, logger, returns):
     sum = 0
     for x in xrange(returns):
-        while True:
-            byte = os.urandom(1)
-            if byte != EMPTY:
-                break
-        sum += util.data_to_int(byte)
-        cb.write_head(byte)
+        num = random.randint(0, 255) #
+        sum += num
+        cb.write_head(util.int_to_bin(num))
         cb.increas_head()
     print sum
 
@@ -69,11 +67,8 @@ def proc_parent(cb, logger, returns):
 def proc_child(cb, logger, returns):
     sum = 0
     for x in xrange(returns):
-        while True:
-            byte = cb.read_tail()
-            if byte != EMPTY:
-                break
-        sum += util.data_to_int(byte)
+        byte = cb.read_tail()
+        sum += util.bin_to_int(byte)
         cb.increas_tail()
     print sum
 
