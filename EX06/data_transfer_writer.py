@@ -71,9 +71,8 @@ def main():
         stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH
     )
     try:
-        while os.fstat(fd).st_size < constants.FILE_SIZE:
-            os.lseek(fd, constants.FILE_SIZE - 1, os.SEEK_SET)
-            os.write(fd, EMPTY)
+        os.lseek(fd, constants.FILE_SIZE - 1, os.SEEK_SET)
+        os.write(fd, EMPTY)
         with contextlib.closing(mmap.mmap(fd, constants.BUFFER_SIZE)) as mm:
             logger.debug("Started writer")
             cb = CyclicBuffer.CyclicBuffer(mm)
@@ -82,7 +81,6 @@ def main():
                 num = random.randint(0, 255)
                 sum += num
                 cb.write_head(util.int_to_bin(num))
-                cb.increas_head()
             util.write_to_target(1, "writer %d" % sum)
     finally:
         os.close(fd)

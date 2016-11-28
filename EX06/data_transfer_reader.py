@@ -73,9 +73,6 @@ def main():
         os.lseek(fd, constants.FILE_SIZE - 1, os.SEEK_SET)
         os.write(fd, EMPTY)
     try:
-        while os.fstat(fd).st_size < constants.FILE_SIZE:
-            os.lseek(fd, os.SEEK_SET, constants.FILE_SIZE - 1)
-            os.write(fd, EMPTY)
         with contextlib.closing(mmap.mmap(fd, constants.BUFFER_SIZE)) as mm:
             logger.debug("Started")
             cb = CyclicBuffer.CyclicBuffer(mm)
@@ -84,7 +81,6 @@ def main():
             for x in xrange(args.test_bytes):
                 byte = cb.read_tail()
                 sum += util.bin_to_int(byte)
-                cb.increas_tail()
             util.write_to_target(1, "reader %d" % sum)
     finally:
         os.close(fd)
