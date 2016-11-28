@@ -2,20 +2,21 @@
 import os
 import struct
 
-FORMATS = ("I", "B")
 
 def int_to_bin(integer):
-    return struct.pack(FORMATS[1], integer)
+    return struct.pack("B", integer)
+
 
 def bin_to_int(binary):
-    return struct.unpack(FORMATS[1], binary)[0]
+    return struct.unpack("B", binary)[0]
+
 
 def data_to_int(data):
-    return struct.unpack(FORMATS[0], data)[0]
+    return struct.unpack("I", data)[0]
 
 
 def int_to_data(integer):
-    return struct.pack(FORMATS[0], integer)
+    return struct.pack("I", integer)
 
 
 def write_to_target(target, text):

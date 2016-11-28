@@ -4,8 +4,8 @@ import contextlib
 import logging
 import mmap
 import os
-import time
 import random
+import stat
 
 import base
 import constants
@@ -54,25 +54,6 @@ def parse_args():
     return args
 
 
-def proc_parent(cb, logger, returns):
-    sum = 0
-    for x in xrange(returns):
-        num = random.randint(0, 255)
-        sum += num
-        cb.write_head(util.int_to_bin(num))
-        cb.increas_head()
-    print sum
-
-
-def proc_child(cb, logger, returns):
-    sum = 0
-    for x in xrange(returns):
-        byte = cb.read_tail()
-        sum += util.bin_to_int(byte)
-        cb.increas_tail()
-    print sum
-
-
 def main():
     args = parse_args()
     if args.log_file:
@@ -84,17 +65,27 @@ def main():
         logger = base.setup_logging(
             level=args.log_level,
         )
-    with contextlib.closing(mmap.mmap(-1, constants.BUFFER_SIZE)) as mm:
-        logger.debug("Started")
-        cb = CyclicBuffer.CyclicBuffer(mm)
-        child = os.fork()
-        if child == 0:
-            logger.debug("Forked child")
-            time.sleep(5)  # Let the parent write a little bit and then start
-            proc_child(cb, logger, args.test_bytes)
-        else:
-            logger.debug("Forked parent")
-            proc_parent(cb, logger, args.test_bytes)
+    fd = os.open(
+        constants.BACKUP_FILE,
+        os.O_CREAT | os.O_RDWR | os.O_TRUNC,
+        stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH
+    )
+    try:
+        while os.fstat(fd).st_size < constants.FILE_SIZE:
+            os.lseek(fd, constants.FILE_SIZE - 1, os.SEEK_SET)
+            os.write(fd, EMPTY)
+        with contextlib.closing(mmap.mmap(fd, constants.BUFFER_SIZE)) as mm:
+            logger.debug("Started writer")
+            cb = CyclicBuffer.CyclicBuffer(mm)
+            sum = 0
+            for x in xrange(args.test_bytes):
+                num = random.randint(0, 255)
+                sum += num
+                cb.write_head(util.int_to_bin(num))
+                cb.increas_head()
+            util.write_to_target(1, "writer %d" % sum)
+    finally:
+        os.close(fd)
 
 
 if __name__ == "__main__":
