@@ -7,7 +7,7 @@ import socket
 
 from disconnect import Disconnect
 
-BASIC_SELECT = select.POLLERR | select.POLLOUT
+BASIC_SELECT = select.POLLERR | select.POLLHUP
 
 
 def add_to_database(database, s, peer):
@@ -33,18 +33,19 @@ def build_poller(database, limit):
             if len(database[fd]["buff"]) < limit:
                 poller.register(
                     database[fd]["socket"],
-                    select.POLLERR | select.POLLIN | select.POLLOUT)
+                    BASIC_SELECT | select.POLLIN | select.POLLOUT)
             else:
                 poller.register(
                     database[fd]["socket"],
-                    select.POLLERR | select.POLLOUT
+                    BASIC_SELECT | select.POLLOUT
                 )
         else:
             poller.register(
                 database[fd]["socket"],
-                select.POLLERR | select.POLLIN
+                BASIC_SELECT | select.POLLIN
             )
     return poller
+
 
 def recv(s, limit):
     ret = ""
@@ -55,7 +56,7 @@ def recv(s, limit):
                 if not ret:
                     raise Disconnect()
                 break
-            ret += buff        
+            ret += buff
         except socket.error as e:
             if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
                 raise
@@ -63,10 +64,11 @@ def recv(s, limit):
                 break
     return ret
 
+
 def send(s, buff):
     while buff:
         try:
             buff = buff[s.send(buff):]
         except socket.error as e:
             if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
-                    raise
+                raise
