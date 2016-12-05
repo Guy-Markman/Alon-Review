@@ -1,10 +1,11 @@
 # Util models for all EX05
-import fcntl
-import socket
-import os
 import errno
-from disconnect import Disconnect
+import fcntl
+import os
 import select
+import socket
+
+from disconnect import Disconnect
 
 BASIC_SELECT = select.POLLERR | select.POLLOUT
 
@@ -32,18 +33,18 @@ def build_poller(database, limit):
             if len(database[fd]["buff"]) < limit:
                 poller.register(
                     database[fd]["socket"],
-                    BASIC_SELECT | select.POLLIN | select.POLLOUT)
+                    select.POLLERR | select.POLLIN | select.POLLOUT)
             else:
                 poller.register(
                     database[fd]["socket"],
-                    BASIC_SELECT | select.POOLOUT
+                    select.POLLERR | select.POLLOUT
                 )
         else:
             poller.register(
                 database[fd]["socket"],
-                BASIC_SELECT | select.POOLIN
+                select.POLLERR | select.POLLIN
             )
-
+    return poller
 
 def recv(s, limit):
     ret = ""
@@ -54,17 +55,18 @@ def recv(s, limit):
                 if not ret:
                     raise Disconnect()
                 break
-            ret += buff
-        except os.ERRNO as e:
-            if e.errno not in (errno.EWOULDBLOCK | errno.EAGAIN):
+            ret += buff        
+        except socket.error as e:
+            if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
                 raise
+            else:
+                break
     return ret
 
-
 def send(s, buff):
-    try:
-        while buff:
+    while buff:
+        try:
             buff = buff[s.send(buff):]
-    except os.ERRNO as e:
-        if e.errno not in (errno.EWOULDBLOCK | errno.EAGAIN):
-            raise
+        except socket.error as e:
+            if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
+                    raise

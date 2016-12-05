@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # poll
 import argparse
+
 import ProxyServer
 
 
@@ -25,7 +26,7 @@ def parse_args():
         "--bind-port-passive", "-bpp",
         default=8080,
         type=int,
-        help="The port that our active side will connect with"
+        help="The port that our passive side will connect with"
     )
 
     parser.add_argument(
@@ -42,19 +43,23 @@ def parse_args():
         help="Proxy Address"
     )
 
+    parser.add_argument(
+        "--buff", "-bf",
+        default=1024,
+        type=int,
+        help="Buff size for each time"
+    )
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-
-    server = ProxyServer(
-        args.our_address,
-        args.bind_port_passive,
-        args.bind_port_active
-    )
+    b = args.buff
+    server = ProxyServer.ProxyServer(b)
 
     server.proxy(args)
+
 
 if __name__ == "__main__":
     main()
