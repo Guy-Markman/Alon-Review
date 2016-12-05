@@ -47,26 +47,20 @@ class CyclicBuffer(base.Base):
         self._mm[self._tail_offset_start:self._tail_offset_end] = \
             util.int_to_data(value)
 
-    def read_tail(self):
+    def read_head(self):
         while self.head == self.tail:
             pass
-        tail = self.tail
-        read_data = self._mm[tail]
-        self.logger.debug("Read %s from %s", read_data, tail)
-        self._increas_tail()
+        head = self.head
+        read_data = self._mm[head]
+        self.logger.debug("Read %s from %s", read_data, head)
+        self.head = (self.head + 1) % (self._min_allocate)
         return read_data
 
-    def write_head(self, value):
-        head = self.head
-        n = (head + 1) % (self._min_allocate)
-        while n == self.tail:
+    def write_tail(self, value):
+        tail = self.tail
+        n = (tail + 1) % (self._min_allocate)
+        while n == tail:
             pass
-        self.logger.debug("Wrote %s into %s", value, head)
-        self._mm[head] = value
-        self._increas_head()
-
-    def _increas_head(self):
-        self.head = (self.head + 1) % (self._min_allocate)
-
-    def _increas_tail(self):
+        self.logger.debug("Wrote %s into %s", value, tail)
+        self._mm[tail] = value
         self.tail = (self.tail + 1) % (self._min_allocate)

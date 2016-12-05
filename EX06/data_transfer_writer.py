@@ -73,14 +73,14 @@ def main():
     try:
         os.lseek(fd, constants.FILE_SIZE - 1, os.SEEK_SET)
         os.write(fd, EMPTY)
-        with contextlib.closing(mmap.mmap(fd, constants.BUFFER_SIZE)) as mm:
+        with contextlib.closing(mmap.mmap(fd, constants.FILE_SIZE)) as mm:
             logger.debug("Started writer")
             cb = CyclicBuffer.CyclicBuffer(mm)
             sum = 0
             for x in xrange(args.test_bytes):
                 num = random.randint(0, 255)
                 sum += num
-                cb.write_head(util.int_to_bin(num))
+                cb.write_tail(util.int_to_bin(num))
             util.write_to_target(1, "writer %d" % sum)
     finally:
         os.close(fd)

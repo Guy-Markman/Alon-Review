@@ -79,7 +79,7 @@ def main():
             logger.debug("Forked child")
             sum = 0
             for x in xrange(args.test_bytes):
-                byte = cb.read_tail()
+                byte = cb.read_head()
                 sum += util.bin_to_int(byte)
             util.write_to_target(1, "reader %d" % sum)
     finally:
