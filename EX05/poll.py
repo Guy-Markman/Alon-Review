@@ -17,7 +17,7 @@ def parse_args():
 
     parser.add_argument(
         "--port-passive", "-pp",
-        default=8081,
+        default=8061,
         type=int,
         help="The port of the passive program"
     )
@@ -55,8 +55,12 @@ def parse_args():
 
 def main():
     args = parse_args()
-    b = args.buff
-    server = ProxyServer.ProxyServer(b)
+    server = ProxyServer.ProxyServer(
+        args.buff,
+        args.bind_port_passive,
+        args.bind_port_active,
+        args.port_passive
+    )
 
     server.proxy(args)
 
