@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # poll
 import argparse
+import signal
 
 import ProxyServer
 
@@ -61,7 +62,9 @@ def main():
         args.bind_port_active,
         args.port_passive
     )
-
+    # I prefer to kill it (the best way to close the program) without exception
+    signal.signal(signal.SIGINT, server.terminate_handler)
+    signal.signal(signal.SIGTERM, server.terminate_handler)
     server.proxy(args)
 
 

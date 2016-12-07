@@ -3,6 +3,7 @@
 import errno
 import select
 import socket
+import sys
 
 import disconnect
 import util
@@ -30,6 +31,10 @@ class ProxyServer(object):
         s.listen(1)
         self.connection_list.append(s)
         return s
+
+    def terminate_handler(self, signum, frame):
+        self.close_all_connections()
+        sys.exit()
 
     def add_socket(self, bind_address, bind_port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
