@@ -13,42 +13,42 @@ def parse_args():
         "--address-passive", "-ap",
         default="localhost",
         type=str,
-        help="The address of the passive program"
+        help="The address of the passive program,default  %(default)s"
     )
 
     parser.add_argument(
         "--port-passive", "-pp",
         default=8061,
         type=int,
-        help="The port of the passive program"
+        help="The port of the passive program, default %(default)d"
     )
 
     parser.add_argument(
         "--bind-port-passive", "-bpp",
         default=8080,
         type=int,
-        help="The port that our passive side will connect with"
-    )
+        help="The port that our passive side will connect with, default %(default)d"
+        )
 
     parser.add_argument(
         "--bind-port-active", "-bpa",
         default=0,
         type=int,
-        help="The port that our active side will bind to"
+        help="The port that our active side will bind to, default %(default)d"
     )
 
     parser.add_argument(
         "--our-address", "-oa",
         default="localhost",
         type=str,
-        help="Proxy Address"
+        help="Proxy Address, default %(default)s"
     )
 
     parser.add_argument(
         "--buff", "-bf",
         default=1024,
         type=int,
-        help="Buff size for each time"
+        help="Buff size for each time, default %(default)d"
     )
 
     return parser.parse_args()

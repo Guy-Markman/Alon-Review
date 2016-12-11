@@ -20,7 +20,7 @@ class ProxyServer(object):
         self.buff_size = buffsize
         self.connection_list = []
         self.database = {}
-        self.current_bind_port_passive = bind_port_passive
+        self.bind_port_passive = bind_port_passive
         self.current_bind_port_active = bind_port_active
         self.current_port_passive = port_passive
 
@@ -32,6 +32,8 @@ class ProxyServer(object):
         self.connection_list.append(s)
         return s
 
+    
+    # Used when CTRL-C or kill the program
     def terminate_handler(self, signum, frame):
         self.close_all_connections()
         sys.exit()
@@ -55,15 +57,15 @@ class ProxyServer(object):
         fd_database = self.database[fd]
         peer_database = self.database[fd_database["peer"]]
         self.connection_list.pop(
-            self.connect_list.index(
+            self.connection_list.index(
                 fd_database["socket"]))
         fd_database["socket"].close()
         self.database.pop(fd)
         self.connection_list.pop(
-            self.connect_list.index(
+            self.connection_list.index(
                 peer_database["socket"]))
         peer_database["socket"].close()
-        self.database.pop(fd_database["peer"])
+        self.database.pop(peer_database)
 
     def close_all_connections(self):
         for s in self.connection_list:
@@ -84,17 +86,12 @@ class ProxyServer(object):
         self.current_port_passive += 1
         self.add_to_database(accepted, active, "listen")
         self.add_to_database(active, accepted, "active")
-        passive = self.add_proxy(
-            args.our_address, self.current_bind_port_passive)
-        self.add_to_database(passive, passive, "proxy")
-        self.current_bind_port_passive += 1
 
     def proxy(self, args):
         try:
             passive = self.add_proxy(
-                args.our_address, self.current_bind_port_passive)
+                args.our_address, self.bind_port_passive)
             self.add_to_database(passive, passive, "proxy")
-            self.current_bind_port_passive += 1
             while self.database:
                 poller = util.build_poller(self.database, self.buff_size)
                 events = poller.poll()
@@ -102,7 +99,6 @@ class ProxyServer(object):
                     if flag & select.POLLIN:
                         if self.database[fd]["type"] == "proxy":
                             self.connect(fd, args)
-                            self.database.pop(fd)
                         else:
                             try:
                                 data = util.recv(

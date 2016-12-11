@@ -28,22 +28,16 @@ def set_non_blocking(Fd):
 
 def build_poller(database, limit):
     poller = select.poll()
+    events = BASIC_SELECT
     for fd in database:
-        if database[fd]["buff"]:
-            if len(database[fd]["buff"]) < limit:
-                poller.register(
-                    database[fd]["socket"],
-                    BASIC_SELECT | select.POLLIN | select.POLLOUT)
-            else:
-                poller.register(
-                    database[fd]["socket"],
-                    BASIC_SELECT | select.POLLOUT
-                )
+        buff = database[fd]["buff"]
+        if buff:
+            events = events | select.POLLOUT
+            if len(buff) < limit:
+                events = events | select.POLLIN
         else:
-            poller.register(
-                database[fd]["socket"],
-                BASIC_SELECT | select.POLLIN
-            )
+            events = events | select.POLLIN
+        poller.register(database[fd]["socket"], events)
     return poller
 
 
