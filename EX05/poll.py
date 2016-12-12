@@ -64,7 +64,6 @@ def main():
     args = parse_args()
     server = ProxyServer.ProxyServer(
         args.buff_size,
-        args.connect_port,
     )
     # I prefer to kill it (the best way to close the program) without exception
     signal.signal(signal.SIGINT, server.terminate_handler)
