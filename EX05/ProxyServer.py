@@ -4,24 +4,21 @@ import errno
 import select
 import socket
 import sys
-
 import disconnect
 import util
 
+BASIC_SELECT = select.POLLERR | select.POLLHUP
+
 
 class ProxyServer(object):
+    _database = {}
 
-    def __init__(self,
-                 buffsize,
-                 bind_port_passive,
-                 bind_port_active,
-                 port_passive
-                 ):
+    def __init__(
+        self,
+        buffsize,
+        port_passive,
+    ):
         self.buff_size = buffsize
-        self.connection_list = []
-        self.database = {}
-        self.bind_port_passive = bind_port_passive
-        self.current_bind_port_active = bind_port_active
         self.current_port_passive = port_passive
 
     def add_proxy(self, bind_address, bind_port):
@@ -29,10 +26,8 @@ class ProxyServer(object):
         s.bind((bind_address, bind_port))
         s.setblocking(0)
         s.listen(1)
-        self.connection_list.append(s)
-        return s
+        self.add_to_database(s, s, "proxy")
 
-    
     # Used when CTRL-C or kill the program
     def terminate_handler(self, signum, frame):
         self.close_all_connections()
@@ -42,11 +37,10 @@ class ProxyServer(object):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setblocking(0)
         s.bind((bind_address, bind_port))
-        self.connection_list.append(s)
         return s
 
     def add_to_database(self, s, peer, connection_type):
-        self.database[s.fileno()] = {
+        self._database[s.fileno()] = {
             "socket": s,
             "buff": "",
             "peer": peer.fileno(),
@@ -54,59 +48,80 @@ class ProxyServer(object):
         }
 
     def close_fd(self, fd):
-        fd_database = self.database[fd]
-        peer_database = self.database[fd_database["peer"]]
-        self.connection_list.pop(
-            self.connection_list.index(
-                fd_database["socket"]))
+        fd_database = self._database[fd]
+        peer_fd = fd_database["peer"]
+        peer_database = self._database[peer_fd]
         fd_database["socket"].close()
-        self.database.pop(fd)
-        self.connection_list.pop(
-            self.connection_list.index(
-                peer_database["socket"]))
+        while peer_database["buff"]:
+            left = util.send(
+                peer_database["socket"],
+                peer_database["buff"]
+            )
+            peer_database["buff"] = peer_database["buff"][left:]
         peer_database["socket"].close()
-        self.database.pop(peer_database)
 
-    def close_all_connections(self):
-        for s in self.connection_list:
-            s.close()
+        self._database.pop(fd)
+        self._database.pop(fd_database["peer"])
 
-    def connect(self, fd, args):
-        accepted, addr = self.database[fd]["socket"].accept()
+    def close_all_connections(self):  # remove connecntion_list
+        for fd in self._database:
+            self._database[fd]["socket"].close()
+
+    def connect_both_sides(self, fd, args):  # change name"
+        accepted, addr = self._database[fd]["socket"].accept()
         accepted.setblocking(0)
-        self.connection_list.append(accepted)
         active = self.add_socket(
-            args.our_address, 0)
+            args.connect_address, args.bind_port_active)
         try:
             active.connect(
                 (args.address_passive, self.current_port_passive))
         except socket.error as e:
-            if e.errno != errno.EINPROGRESS:
+            if e.errno != errno.EINPROGRESS:  # not throwing everything, close handles
+                accepted.close()
                 raise
+
         self.current_port_passive += 1
-        self.add_to_database(accepted, active, "listen")
+        self.add_to_database(accepted, active, "active")
         self.add_to_database(active, accepted, "active")
+
+    def build_poller(self):  # move to proxy
+        poller = select.poll()
+        events = BASIC_SELECT
+        for fd in self._database:
+            buff = self._database[fd]["buff"]
+            if buff:
+                events |= select.POLLOUT  # |=
+                if len(buff) < self.buff_size:  # change this
+                    events |= select.POLLIN
+            else:
+                events |= select.POLLIN
+            poller.register(self._database[fd]["socket"], events)
+        return poller
 
     def proxy(self, args):
         try:
-            passive = self.add_proxy(
-                args.our_address, self.bind_port_passive)
-            self.add_to_database(passive, passive, "proxy")
-            while self.database:
-                poller = util.build_poller(self.database, self.buff_size)
-                events = poller.poll()
+            while self._database:
+                poller = self.build_poller()
+                events = poller.poll()                
                 for fd, flag in events:
                     if flag & select.POLLIN:
-                        if self.database[fd]["type"] == "proxy":
-                            self.connect(fd, args)
+                        if self._database[fd]["type"] == "proxy":
+                            try:
+                                self.connect_both_sides(
+                                    fd, args)  # change name
+                            except socket.error:
+                                pass
                         else:
                             try:
                                 data = util.recv(
-                                    self.database[fd]["socket"], self.buff_size
+                                    self._database[fd]["socket"],
+                                    # not buffer size
+                                    self.buff_size - \
+                                    len(self._database[fd]["buff"])
                                 )
-                                if data:
-                                    self.database[
-                                        self.database[fd]["peer"]]["buff"] += \
+                                if data is not None:
+                                    self._database[
+                                        self._database[fd]["peer"]]["buff"] +=\
                                         data
                                 else:
                                     self.close_fd(fd)
@@ -115,10 +130,11 @@ class ProxyServer(object):
                     if flag & (select.POLLHUP | select.POLLERR):
                         self.close_fd(fd)
                     if flag & select.POLLOUT:
-                        util.send(
-                            self.database[fd]["socket"],
-                            self.database[fd]["buff"])
-                        self.database[fd]["buff"] = ""
+                        left = util.send(  # return sent size
+                            self._database[fd]["socket"],
+                            self._database[fd]["buff"])
+                        self._database[fd]["buff"] = self._database[
+                            fd]["buff"][left:]
             self.close_all_connections()
         except:
             self.close_all_connections()

@@ -12,23 +12,30 @@ def parse_args():
     parser.add_argument(
         "--address-passive", "-ap",
         default="localhost",
-        type=str,
         help="The address of the passive program,default  %(default)s"
     )
 
     parser.add_argument(
-        "--port-passive", "-pp",
+        "--connect-address",
+        default="localhost",
+        help="The address of the passive program, default %(default)s"
+    )
+
+    parser.add_argument(
+        "--connect-port", "-pp",
         default=8061,
         type=int,
         help="The port of the passive program, default %(default)d"
     )
 
     parser.add_argument(
-        "--bind-port-passive", "-bpp",
+        "--bind-port-passive",
+        "-bpp",
         default=8080,
         type=int,
-        help="The port that our passive side will connect with, default %(default)d"
-        )
+        help='''The port that our passive side will connect with, default
+            %(default)d'''
+    )
 
     parser.add_argument(
         "--bind-port-active", "-bpa",
@@ -40,12 +47,11 @@ def parse_args():
     parser.add_argument(
         "--our-address", "-oa",
         default="localhost",
-        type=str,
         help="Proxy Address, default %(default)s"
     )
 
     parser.add_argument(
-        "--buff", "-bf",
+        "--buff-size", "-bf",
         default=1024,
         type=int,
         help="Buff size for each time, default %(default)d"
@@ -57,14 +63,13 @@ def parse_args():
 def main():
     args = parse_args()
     server = ProxyServer.ProxyServer(
-        args.buff,
-        args.bind_port_passive,
-        args.bind_port_active,
-        args.port_passive
+        args.buff_size,
+        args.connect_port,
     )
     # I prefer to kill it (the best way to close the program) without exception
     signal.signal(signal.SIGINT, server.terminate_handler)
     signal.signal(signal.SIGTERM, server.terminate_handler)
+    server.add_proxy(args.our_address, args.bind_port_passive)
     server.proxy(args)
 
 
