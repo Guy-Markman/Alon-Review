@@ -3,7 +3,7 @@
 import errno
 import select
 import socket
-import sys
+
 import disconnect
 import util
 
@@ -29,14 +29,7 @@ class ProxyServer(object):
         s.bind((bind_address, bind_port))
         s.setblocking(0)
         s.listen(1)
-        self.add_to_database(s, s, "proxy", connect_address, connect_port)
-
-    # Used when CTRL-C or kill the program
-    # class can't exit program
-    # hanlder can't close
-    def terminate_handler(self, signum, frame):
-        self.close_all_connections()
-        sys.exit()
+        self._add_to_database(s, s, "proxy", connect_address, connect_port)
 
     def _add_socket(self, bind_address, bind_port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -44,44 +37,38 @@ class ProxyServer(object):
         s.bind((bind_address, bind_port))
         return s
 
-    def add_to_database(
-            self,
-            s,
-            peer,
-            connection_type,
-            connect_address=None,
-            connect_port=None):
+    def _add_to_database(
+        self,
+        s,
+        peer,
+        connection_type,
+        connect_address=None,
+        connect_port=None,
+        open_connection=True,
+    ):
         self._database[s.fileno()] = {
-            "socket": s,
-            "buff": "",
-            "peer": peer.fileno(),
-            "type": connection_type,
-            "connect_address": connect_address,
-            "connect_port": connect_port,
+            "socket": s,  # our socket
+            "buff": "",  # Buff to send to socket
+            "peer": peer.fileno(),  # Peer in database
+            "type": connection_type,  # Proxy or active
+            "connect_address": connect_address,  # For proxy only, where to
+            "connect_port": connect_port,  # Connect when someone connect to it
+            "open_connection": True  # Able to get/recv data
         }
 
-    def close_fd(self, fd):
+    def _close_fd(self, fd):
         fd_database = self._database[fd]
-        peer_fd = fd_database["peer"]
-        peer_database = self._database[peer_fd]
+        self._database[fd_database["peer"]]["open_connection"] = False
         fd_database["socket"].close()
-        while peer_database["buff"]: # can't send all here
-            left = util.send(
-                peer_database["socket"],
-                peer_database["buff"]
-            )
-            peer_database["buff"] = peer_database["buff"][left:]
-        peer_database["socket"].close()
-
         self._database.pop(fd)
-        self._database.pop(fd_database["peer"])
 
-    def close_all_connections(self):
+    def _close_all_connections(self):
         for fd in self._database:
-            self._database[fd]["socket"].close()
+            self._database[fd]["open_connection"] = False
 
-    def connect_both_sides(self, fd, args):
+    def _connect_both_sides(self, fd, args):
         accepted, addr = self._database[fd]["socket"].accept()
+        connection = True
         accepted.setblocking(0)
         active = self._add_socket(
             args.our_address, args.bind_port_active)
@@ -91,66 +78,73 @@ class ProxyServer(object):
                  self._database[fd]["connect_port"]))
         except socket.error as e:
             if e.errno != errno.EINPROGRESS:
-                accepted.close()
-                raise
-        finally: #how to clean it 
-            
+                connection = False
+        self._add_to_database(accepted, active, "active",
+                              open_connection=connection)
+        self._add_to_database(active, accepted, "active",
+                              open_connection=connection)
 
-        self.add_to_database(accepted, active, "active")
-        self.add_to_database(active, accepted, "active")
-
-    def build_poller(self): # private all
+    def _build_poller(self):
         poller = select.poll()
-        events = BASIC_SELECT
         for fd in self._database:
+            events = BASIC_SELECT
             buff = self._database[fd]["buff"]
             if buff:
                 events |= select.POLLOUT
-                if len(buff) < self.buff_size: # couple
+                peer_buff = self._database[self._database[fd]["peer"]]["buff"]
+                if len(peer_buff) < self.buff_size and \
+                        self._database[fd]["open_connection"]:
                     events |= select.POLLIN
-            else:
+            elif self._database[fd]["open_connection"]:
                 events |= select.POLLIN
             poller.register(self._database[fd]["socket"], events)
+
         return poller
 
     def proxy(self, args):
-        try:
-            while self._database:
-                poller = self.build_poller()
+        exce = None  # Exception to raise
+        while True:
+            try:
+                for fd in self._database:
+                    entry = self._database[fd]
+                    if not entry["open_connection"] and not entry["buff"]:
+                        self._close_fd(fd)
+                if not self._database:
+                    break
+                poller = self._build_poller()
                 events = poller.poll()
                 for fd, flag in events:
-                    entry = self._database[fd] # change it to everywhere
+                    entry = self._database[fd]
                     if flag & select.POLLIN:
-                        if self._database[fd]["type"] == "proxy":
+                        if entry["type"] == "proxy":
                             try:
-                                self.connect_both_sides(
+                                self._connect_both_sides(
                                     fd, args)
                             except socket.error:
                                 pass
                         else:
                             try:
                                 data = util.recv(
-                                    self._database[fd]["socket"],
-                                    self.buff_size - \
-                                    len(self._database[fd]["buff"])
+                                    entry["socket"],
+                                    self.buff_size -
+                                    len(self._database[entry["peer"]]["buff"])
                                 )
-                                if data:
-                                    self._database[
-                                        self._database[fd]["peer"]]["buff"] +=\
-                                        data
-                                else:
-                                    self.close_fd(fd) # housekeeping in one location
+
+                                self._database[
+                                    entry["peer"]]["buff"] +=\
+                                    data
                             except disconnect.Disconnect:
-                                self.close_fd(fd)
+                                entry["open_connection"] = False
                     if flag & (select.POLLHUP | select.POLLERR):
-                        self.close_fd(fd)
-                        
+                        entry["open_connection"] = False
+
                     if flag & select.POLLOUT:
                         left = util.send(
-                            self._database[fd]["socket"],
-                            self._database[fd]["buff"])
-                        self._database[fd]["buff"] = self._database[
-                            fd]["buff"][left:]
-        except:
-            self.close_all_connections()
-            raise
+                            entry["socket"],
+                            entry["buff"])
+                        entry["buff"] = entry["buff"][left:]
+            except Exception as e:
+                self._close_all_connections()
+                exce = e
+        if exce:
+            raise exce

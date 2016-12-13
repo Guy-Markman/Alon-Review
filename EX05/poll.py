@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # poll
 import argparse
-import signal
 
 import ProxyServer
 
@@ -65,9 +64,6 @@ def main():
     server = ProxyServer.ProxyServer(
         args.buff_size,
     )
-    # I prefer to kill it (the best way to close the program) without exception
-    signal.signal(signal.SIGINT, server.terminate_handler)
-    signal.signal(signal.SIGTERM, server.terminate_handler)
     server.add_proxy(
         args.our_address,
         args.bind_port_passive,
