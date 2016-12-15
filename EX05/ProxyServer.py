@@ -58,7 +58,10 @@ class ProxyServer(object):
 
     def _close_fd(self, fd):
         fd_database = self._database[fd]
-        self._database[fd_database["peer"]]["open_connection"] = False
+        try:
+            self._database[fd_database["peer"]]["open_connection"] = False
+        except KeyError:  # Whice mean the peer already removed
+            pass
         fd_database["socket"].close()
         self._database.pop(fd)
 
@@ -105,7 +108,7 @@ class ProxyServer(object):
         exce = None  # Exception to raise
         while True:
             try:
-                for fd in self._database:
+                for fd in self._database.keys():
                     entry = self._database[fd]
                     if not entry["open_connection"] and not entry["buff"]:
                         self._close_fd(fd)
@@ -143,7 +146,7 @@ class ProxyServer(object):
                             entry["socket"],
                             entry["buff"])
                         entry["buff"] = entry["buff"][left:]
-            except Exception as e:
+            except BaseException as e:
                 self._close_all_connections()
                 exce = e
         if exce:
