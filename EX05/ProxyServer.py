@@ -90,19 +90,45 @@ class ProxyServer(object):
     def _build_poller(self):
         poller = select.poll()
         for fd in self._database:
+            entry = self._database[fd]
             events = BASIC_SELECT
-            buff = self._database[fd]["buff"]
+            buff = entry["buff"]
             if buff:
                 events |= select.POLLOUT
-                peer_buff = self._database[self._database[fd]["peer"]]["buff"]
+                peer_buff = self._database[entry["peer"]]["buff"]
                 if len(peer_buff) < self.buff_size and \
-                        self._database[fd]["open_connection"]:
+                        entry["open_connection"]:
                     events |= select.POLLIN
-            elif self._database[fd]["open_connection"]:
+            elif entry["open_connection"]:
                 events |= select.POLLIN
-            poller.register(self._database[fd]["socket"], events)
+            poller.register(entry["socket"], events)
 
         return poller
+    
+    def _build_select(self):
+        rlist=[]
+        wlist=[]
+        keys= self._database.keys()
+        xlist=[]
+        socket_fd = {}
+        for fd in self._database:
+            entry = self._database[fd]
+            entry_socket = entry["socket"]
+            xlist.append(entry_socket)
+            socket_fd[entry_socket] = fd
+            buff = entry["buff"]
+            if buff:
+                wlist.append(entry_socket)
+                entry_peer = entry["peer"]
+                if entry_peer in keys:
+                    peer_buff = self._database[entry_peer]["buff"]
+                    if len(peer_buff) < self.buff_size and \
+                        entry["open_connection"]:
+                            rlist.append(entry_socket)
+            elif entry["open_connection"]:
+                rlist.append(entry_socket)
+        return (rlist, wlist, xlist)
+
 
     def proxy(self, args):
         exce = None  # Exception to raise
