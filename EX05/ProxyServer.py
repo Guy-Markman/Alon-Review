@@ -31,7 +31,7 @@ class ProxyServer(object):
         s.setblocking(0)
         s.listen(1)
         self._add_to_database(s, s, "proxy", connect_address, connect_port)
-        self._socket_fd[s] = s.filno()
+        self._socket_fd[s] = s.fileno()
 
     def _add_socket(self, bind_address, bind_port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,8 +115,10 @@ class ProxyServer(object):
         rlist = []
         wlist = []
         keys = self._database.keys()
+        print "got keys"
         xlist = []
         socket_fd = {}
+        print "number of loops %d" % len(keys)
         for fd in self._database:
             entry = self._database[fd]
             entry_socket = entry["socket"]
@@ -133,6 +135,7 @@ class ProxyServer(object):
                         rlist.append(entry_socket)
             elif entry["open_connection"]:
                 rlist.append(entry_socket)
+        print "finished building"
         return (rlist, wlist, xlist)
 
     def proxySelect(self, args):
@@ -142,37 +145,53 @@ class ProxyServer(object):
                 for fd in self._database.keys():
                     entry = self._database[fd]
                     if not entry["open_connection"] and not entry["buff"]:
+                        print "Closed %s" (fd)
                         self._close_fd(fd)
+                        print "closed"
                 if not self._database:
+                    print "break"
                     break
                 rlist, wlist, xlist = self._build_select()
                 rlist, wlist, xlist = select.select(rlist, wlist, xlist)
+                print "rlist %s" % rlist
+                print "wlist %s" % wlist
+                print "xlist %s" % xlist
 
                 for s in rlist:
+                    print "fd read %d" % fd
                     entry = self._database[self._socket_fd[s]]
                     if entry["type"] == "proxy":
+                        print "connecting"
                         try:
                             self._connect_both_sides(
                                 fd, args)
+                            print "connected"
                         except socket.error:
+                            print "failed to connect"
                             pass
                     else:
                         try:
+                            print "recving"
                             data = util.recv(
                                 entry["socket"],
                                 self.buff_size -
                                 len(self._database[entry["peer"]]["buff"])
                             )
+                            print "recived %d" % data
                             self._database[
                                 entry["peer"]]["buff"] +=\
                                 data
                         except disconnect.Disconnect:
+                            print "failed to recv"
                             entry["open_connection"] = False
                 for s in xlist:
                     self._database[self._socket_fd[s]][
                         "open_connection"] = False
                 for s in wlist:
-                    entry = self._database[self._socket_fd[s]]
+                    left = util.send(
+                        entry["socket"],
+                        entry["buff"])
+                    entry["buff"] = entry["buff"][left:]
             except BaseException as e:
                 self._close_all_connections()
                 exce = e

@@ -15,10 +15,15 @@ def set_non_blocking(Fd):
 
 
 def recv(s, limit):
+    print "start recving"
     ret = ""
     while len(ret) < limit:
+        print "unlimited"
         try:
+            print "stuck here?"
             buff = s.recv(limit - len(ret))
+            print "nope"
+            print buff
             if not buff:
                 if not ret:
                     raise Disconnect()

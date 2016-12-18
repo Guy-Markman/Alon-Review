@@ -10,7 +10,7 @@ def parse_args():
     parser.add_argument(
         "--mode",
         required=True,
-        choices=("select, poll"),
+        choices=("select", "poll"),
         help="The async IO model we will use. Windows can use only select",
     )
 
@@ -79,7 +79,7 @@ def main():
     if args.mode == "poll":
         server.proxyPoll(args)
     else:
-        server.proxySelect
+        server.proxySelect(args)
 
 
 if __name__ == "__main__":
