@@ -7,6 +7,12 @@ import ProxyServer
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode",
+        required=True,
+        choices=("select, poll"),
+        help="The async IO model we will use. Windows can use only select",
+    )
 
     parser.add_argument(
         "--address-passive", "-ap",
@@ -70,7 +76,10 @@ def main():
         args.connect_address,
         args.connect_port
     )
-    server.proxy(args)
+    if args.mode == "poll":
+        server.proxyPoll(args)
+    else:
+        server.proxySelect
 
 
 if __name__ == "__main__":
