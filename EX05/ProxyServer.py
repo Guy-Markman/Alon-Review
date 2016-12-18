@@ -90,15 +90,16 @@ class ProxyServer(object):
     def _build_poller(self):
         poller = select.poll()
         for fd in self._database:
+            entry = self._database[fd]
             events = BASIC_SELECT
-            buff = self._database[fd]["buff"]
+            buff = entry["buff"]
             if buff:
                 events |= select.POLLOUT
-                peer_buff = self._database[self._database[fd]["peer"]]["buff"]
+                peer_buff = self._database[entry["peer"]]["buff"]
                 if len(peer_buff) < self.buff_size and \
-                        self._database[fd]["open_connection"]:
+                        entry["open_connection"]:
                     events |= select.POLLIN
-            elif self._database[fd]["open_connection"]:
+            elif entry["open_connection"]:
                 events |= select.POLLIN
             poller.register(self._database[fd]["socket"], events)
 
