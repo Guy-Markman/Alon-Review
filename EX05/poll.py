@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument(
         "--proxy",
         default=["localhost:8080:localhost:8061"],
-        nargs='?',
+        nargs='+',
         help="The address(es) we will connect to, default %(default)d"
     )
     parser.add_argument(

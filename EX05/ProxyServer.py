@@ -88,13 +88,13 @@ class ProxyServer(object):
             self._add_to_database(accepted, active, state=connection)
             self._add_to_database(active, accepted, state=connection)
         except Exception as e:
-            if accepted in locals():
+            if 'accepted' in locals():
                 accepted.close()
                 fd_accepted = accepted.fileno()
                 if fd_accepted in self._database.keys():
                     self._database.pop(fd_accepted)
 
-            if active in locals():
+            if 'active' in locals():
                 active.close()
                 fd_active = active.fileno()
                 if fd_active in self._database.keys():
@@ -114,7 +114,8 @@ class ProxyServer(object):
                     if len(peer_buff) < self.buff_size and \
                             entry["state"] != "close":
                         events |= select.POLLIN
-            elif entry["peer"] is not None and entry["state"] != "close":
+            elif (entry["peer"] is not None or entry["state"] == "proxy") and \
+                    entry["state"] != "close":
                 events |= select.POLLIN
             poller.register(entry["socket"], events)
         return poller
@@ -132,6 +133,7 @@ class ProxyServer(object):
 
                 if not self._database:
                     break
+
                 poller = self._build_poller()
                 try:
                     events = poller.poll()
@@ -144,7 +146,8 @@ class ProxyServer(object):
                     if flag & select.POLLIN:
                         if entry["state"] == "proxy":
                             self._connect_both_sides(  # TODO: never pass
-                                fd, args)
+                                entry)
+
                         else:
                             data = ""
                             try:
