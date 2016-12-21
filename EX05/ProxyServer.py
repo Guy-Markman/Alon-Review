@@ -24,20 +24,19 @@ class ProxyServer(object):
 
     def add_proxy(
         self,
-        bind_address,
-        connect_address
+        address_list
     ):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(bind_address)
+        s.bind(address_list[0])
         s.setblocking(0)
         s.listen(1)
         self._add_to_database(
-            s, None, "proxy", connect_address)  # TODO: peer None
+            s, None, "proxy", address_list[1]
+        )
 
-    def _add_socket(self, bind_address, bind_port):
+    def _add_socket(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setblocking(0)
-        s.bind((bind_address, bind_port))
+        s.setblocking(0)  # TODO: Check with alon if bind is must
         return s
 
     def _add_to_database(
@@ -47,16 +46,23 @@ class ProxyServer(object):
         state,
         address=None
     ):
+        if peer is not None:
+            peer_fileno = peer.fileno()
+        else:
+            peer_fileno = None
         self._database[s.fileno()] = {
             "socket": s,  # our socket
             "buff": "",  # Buff to send to socket
-            "peer": peer.fileno(),  # Peer in database
-            "state": state,  # Proxy, active or close # TODO: Merge type and open connection
+            "peer": peer_fileno,  # Peer in database
+            "state": state,  # Proxy, active or close
             "connect_address": address,  # For proxy only, where to connect
         }
 
-    def _close_fd(self, entry):
-        if entry["peer"] in self._database.keys():  # TODO: keys and peer
+    def _close_fd(self, fd):
+        entry = self._database[fd]
+        entry_peer = entry["peer"]
+
+        if entry_peer is not None:
             peer_database = self._database[entry["peer"]]
             peer_database["peer"] = None
             peer_database["state"] = "close"
@@ -67,14 +73,12 @@ class ProxyServer(object):
         for fd in self._database:
             self._database[fd]["state"] = "close"
 
-    # TODO Entry instead of fd  and exception
-    def _connect_both_sides(self, entry, args):
+    def _connect_both_sides(self, entry):
         try:
             accepted, addr = entry["socket"].accept()
             connection = "active"
             accepted.setblocking(0)
-            active = self._add_socket(
-                args.our_address, args.bind_port_active)
+            active = self._add_socket()
             try:
                 active.connect(entry["connect_address"])
             except socket.error as e:
@@ -124,15 +128,21 @@ class ProxyServer(object):
                 for fd in self._database.keys():
                     entry = self._database[fd]
                     if entry["state"] == "close" and not entry["buff"]:
-                        self._close_fd(entry)
-                if not self.run:
-                    self._close_all_connections()
+                        self._close_fd(fd)
+
+                if not self._database:
+                    break
                 poller = self._build_poller()
-                for fd, flag in poller.poll():
-                    print "fd: %s and Events %s" % (fd, flag)
+                try:
+                    events = poller.poll()
+                except select.error as e:
+                    if e[0] != errno.EINTR:
+                        raise
+                    events = ()
+                for fd, flag in events:
                     entry = self._database[fd]
                     if flag & select.POLLIN:
-                        if entry["state"] == "close":
+                        if entry["state"] == "proxy":
                             self._connect_both_sides(  # TODO: never pass
                                 fd, args)
                         else:
@@ -140,29 +150,28 @@ class ProxyServer(object):
                             try:
                                 data = self.recv(entry)
                                 self._database[entry["peer"]]["buff"] += data
-                            except disconnect.Disconnect:  # TODO: any other exception
+                            except disconnect.Disconnect:
                                 entry["state"] = "close"
                             except Exception:
                                 if data != "":
-                                    if entry["peer"] is not None:
-                                        self._database[entry["peer"]][
-                                            "buff"] += data
+                                    self._database[entry["peer"]][
+                                        "buff"] += data
 
                     if flag & (
-                            select.POLLHUP | select.POLLERR):  # TODO: close socket
-                        self._close_fd(entry)
+                            select.POLLHUP | select.POLLERR):
+                        self._close_fd(fd)
 
                     if flag & select.POLLOUT:
                         left = 0
                         try:
-                            left = self.send(  # Move send and recv to here TODO
+                            left = self.send(
                                 entry)
                             entry["buff"] = entry["buff"][left:]
                         except Exception as e:
                             if left != 0:
                                 entry["buff"] = entry["buff"][left:]
-            except BaseException as e:
-                self.close_all_connections()  # TODO: EINTER AND CTRL C
+            except Exception as e:
+                self._close_all_connections()  # TODO: EINTER AND CTRL C
                 exce = e
         if exce:
             raise exce
@@ -173,10 +182,10 @@ class ProxyServer(object):
         entry_socket = entry["socket"]
         while len(ret) < self.buff_size:
             try:
-                buff = entry_buff.recv(limit - len(ret))
+                buff = entry_socket.recv(limit - len(ret))
                 if not buff:
                     if not ret:
-                        raise Disconnect()
+                        raise disconnect.Disconnect()
                     break
                 ret += buff
             except socket.error as e:
@@ -195,4 +204,4 @@ class ProxyServer(object):
             except socket.error as e:
                 if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
                     raise
-        return start - len(buff)
+        return start - len(entry_buff)
