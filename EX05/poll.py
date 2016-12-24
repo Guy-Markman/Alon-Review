@@ -30,7 +30,10 @@ def parse_args():
                 """--proxy need to be in the next format:
                     proxy_address:proxy_port:remote_address:remote_port"""
             )
-        address_list.append([(a[0], int(a[1])), (a[2], int(a[3]))])
+        address_list.append({
+            "our address": (a[0], int(a[1])),
+            "connect address": (a[2], int(a[3]))
+        })
     parser.proxy = address_list
     return parser
 
@@ -44,8 +47,8 @@ def main():
     print args
     signal.signal(signal.SIGINT, xxx)
     signal.signal(signal.SIGTERM, xxx)
-    for ad in args.proxy:
-        server.add_proxy(ad)
+    for address_dict in args.proxy:
+        server.add_proxy(address_dict)
     server.proxy(args)
 
 
