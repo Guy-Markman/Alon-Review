@@ -48,7 +48,10 @@ def main():
     signal.signal(signal.SIGINT, xxx)
     signal.signal(signal.SIGTERM, xxx)
     for address_dict in args.proxy:
-        server.add_proxy(address_dict)
+        server.add_proxy(
+            address_dict["our address"],
+            address_dict["connect_address"]
+        )
     server.proxy(args)
 
 
