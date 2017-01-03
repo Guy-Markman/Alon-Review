@@ -42,15 +42,15 @@ def main():
     args = parse_args()
     server = ProxyServer.ProxyServer(args.buff_size)
 
-    def xxx(signo, frame):
+    def terminate_handler(signo, frame):
         server.terminate()
-    print args
-    signal.signal(signal.SIGINT, xxx)
-    signal.signal(signal.SIGTERM, xxx)
+
+    signal.signal(signal.SIGINT, terminate_handler)
+    signal.signal(signal.SIGTERM, terminate_handler)
     for address_dict in args.proxy:
         server.add_proxy(
             address_dict["our address"],
-            address_dict["connect_address"]
+            address_dict["connect address"]
         )
     server.proxy(args)
 

@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 # The proxy server we will creat
 import errno
-import os
 import select
 import socket
-
-import disconnect
+import traceback
 
 CLOSE, PROXY, ACTIVE = range(3)
+
+
+class Disconnect(RuntimeError):
+
+    def __init__(self):
+        super(Disconnect, self).__init__("Disconnect")
 
 
 class ProxyServer(object):
@@ -26,17 +30,12 @@ class ProxyServer(object):
     def add_proxy(
         self,
         our_address=("localhost", 8080),
-        connect_address=("localhost", 8061)
+        connect_address=("localhost", 8061),
     ):
         s = self._creat_nonblocking_socket()
         s.bind(our_address)
         s.listen(1)
-        self._add_to_database(
-            s,
-            None,
-            "proxy",
-            connect_address
-        )
+        self._add_to_database(s, state=PROXY, address=connect_address)
 
     def _creat_nonblocking_socket(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -46,8 +45,8 @@ class ProxyServer(object):
     def _add_to_database(
         self,
         s,
-        peer,
-        state,
+        peer=None,
+        state=ACTIVE,
         address=None
     ):
         self._database[s.fileno()] = {
@@ -74,47 +73,37 @@ class ProxyServer(object):
         entry["socket"].close()
         self._database.pop(fd)
 
-    def _close_all_connections(self):
-        for fd in self._database:
-            self._database[fd]["state"] = "close"
-
     def _connect_both_sides(self, entry):
         accepted = None
         active = None
         try:
             accepted, addr = entry["socket"].accept()
-            connection = "active"
             accepted.setblocking(0)
             active = self._creat_nonblocking_socket()
             try:
                 active.connect(entry["connect_address"])
             except socket.error as e:
                 if e.errno != errno.EINPROGRESS:
-                    connection = False
+                    raise
 
-            self._add_to_database(accepted, active, state=connection)
-            self._add_to_database(active, accepted, state=connection)
+            self._add_to_database(accepted, active, state=ACTIVE)
+            self._add_to_database(active, accepted, state=ACTIVE)
         except Exception as e:
-            self._close_socket_error_in_creation(accepted)
-            self._close_socket_error_in_creation(active)
-
-    def _close_socket_error_in_creation(self, maybe_socket):
-        if maybe_socket is not None:
-            fd_socekt = maybe_socket.fileno()
-            maybe_socket.close()
-            if fd_socekt in self._database.keys():
-                self._database.pop(fd_socekt)
+            traceback.print_exc()
+            if accepted is not None:
+                accepted.close()
+            if active is not None:
+                active.close()
 
     def _build_poller(self):
         poller = select.poll()
-        for fd in self._database:
+        for entry in self._database.values():
             events = select.POLLERR
-            if fd["state"] == CLOSE:
-                events |= socket.POLLOUT
-            elif fd["state"] == PROXY:
-                events |= socket.POLLIN
-            else:
-                entry = self._database[fd]
+            if entry["state"] == CLOSE:
+                events |= select.POLLOUT
+            elif entry["state"] == PROXY:
+                events |= select.POLLIN
+            elif entry["state"] == ACTIVE:
                 if entry["buff"]:
                     events |= select.POLLOUT
                 fd_peer = entry["peer"]
@@ -123,22 +112,24 @@ class ProxyServer(object):
                     len(self._database[fd_peer]) < self._buff_size
                 ):
                     events |= select.POLLIN
+            else:
+                raise RuntimeError("Corrupted database")
             poller.register(entry["socket"], events)
+
         return poller
 
     def proxy(self, args):
-        exce = None  # Exception to raise
         while self._database:
             try:
                 if not self._run:
-                    self._close_all_connections()
+                    for fd in self._database:
+                        self._database[fd]["state"] = CLOSE
+                for fd in self._database.keys():
+                    entry = self._database[fd]
+                    if entry["state"] == CLOSE and entry["buff"] == "":
+                        self._close_fd(fd)
                 poller = self._build_poller()
-                events = ()
-                try:
-                    events = poller.poll()
-                except select.error as e:
-                    if e[0] != errno.EINTR:
-                        raise
+                events = poller.poll()
                 for fd, flag in events:
                     entry = self._database[fd]
                     if flag & select.POLLIN:
@@ -148,31 +139,26 @@ class ProxyServer(object):
                             self.recv(fd)
 
                     if flag & select.POLLHUP:
-                        raise disconnect.Disconnect()
+                        raise Disconnect()
                     if flag & select.POLLERR:
-                        raise socket.error(
-                            errno.ECONNABORTED,
-
-                            # FIXME: socket.error: [Errno 10053] Unknown error
-                            os.strerror(errno.ECONNABORTED)
+                        raise RuntimeError(
+                            "Error condition happened on %s" % fd
                         )
 
                     if flag & select.POLLOUT:
                         self.send(entry)
 
-                    for fd in self._database.keys():
-                        entry = self._database[fd]
-                        if entry["state"] == CLOSE and entry["buff"] == "":
-                            self._close_fd(fd)
-            except disconnect.Disconnect as e:
-                self._databse[self._database[fd]["peer"]]["state"] = CLOSE
-                self._close_fd(fd)
-                exce = e
+            except select.error as e:
+                if e[0] != errno.EINTR:
+                    traceback.print_exc()
+                    self._close_fd(fd)
+
+            except Disconnect as e:
+                traceback.print_exc()
+                self._database[self._database[fd]["peer"]]["state"] = CLOSE
             except Exception as e:
+                traceback.print_exc()
                 self._close_fd(fd)
-                exce = e
-        if exce:
-            raise exce
 
     def recv(self, entry):
         peer_entry = self.database[entry["peer"]]
@@ -184,7 +170,7 @@ class ProxyServer(object):
                 )
                 if not buff:
                     if not peer_entry["buff"]:
-                        raise disconnect.Disconnect(entry.keys()[0])
+                        raise Disconnect(entry.keys()[0])
                     break
                 peer_entry["buff"] += buff
                 break
